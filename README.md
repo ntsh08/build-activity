@@ -25,7 +25,7 @@ You can then ask Claude to rename a project, merge two folders, add a link or hi
 
 ## Privacy
 
-The skill reads only the date and folder of each saved Claude Code session. It never reads what you said. The page is saved to `~/.claude/build-activity/` and never leaves your machine.
+The skill reads only the date and folder of each saved Claude Code session. It never reads what you said. The page is saved as `build-activity.html` in your projects folder and never leaves your machine.
 
 ## License
 

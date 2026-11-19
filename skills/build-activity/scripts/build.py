@@ -21,7 +21,6 @@ HOME = os.path.expanduser("~")
 SESSIONS = os.path.join(HOME, ".claude", "projects")
 STATE = os.path.join(HOME, ".claude", "build-activity")
 CONFIG = os.path.join(STATE, "config.json")
-OUTPUT = os.path.join(STATE, "build-activity.html")
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "page.html")
 SKIP = {"node_modules", ".git", ".next", "build", "dist", "DerivedData", ".venv", "venv", "Pods", ".build", "out", "coverage"}
 ICON_NAMES = ["app-icon.png", "appicon.png", "icon.png", "logo.png", "apple-touch-icon.png", "favicon.png", "icon.svg", "logo.svg", "favicon.svg"]
@@ -184,12 +183,12 @@ def build(cfg):
     data = {"year": year, "today": today.isoformat(), "messages": dict(sorted(per_day.items())), "projects": projects}
     with open(TEMPLATE) as f:
         page = f.read()
-    os.makedirs(STATE, exist_ok=True)
-    with open(OUTPUT, "w") as f:
+    output = os.path.join(root, "build-activity.html")
+    with open(output, "w") as f:
         f.write(page.replace("/*__DATA__*/null", json.dumps(data, separators=(",", ":"))))
     in_year = [d for d in per_day if d.startswith(str(year))]
     project_days = set().union(*[set(p["days"]) for p in projects]) if projects else set()
-    print(f"PAGE {OUTPUT}")
+    print(f"PAGE {output}")
     print(f"{len(in_year)} days building in {year}")
     for p in sorted(projects, key=lambda p: -len(p["days"]))[:8]:
         print(f"- {p['name']}: {len(p['days'])} days ({p['days'][0]} to {p['days'][-1]})")

@@ -11,7 +11,7 @@ Each subfolder of the user's projects folder is one project. A day counts for a 
 
 ## Privacy
 
-The script reads only three fields from each saved session line: its type, its timestamp and the folder Claude ran in. It never reads what was said. The page is written to `~/.claude/build-activity/` and stays on the user's machine. Say this in one line on the first run.
+The script reads only three fields from each saved session line: its type, its timestamp and the folder Claude ran in. It never reads what was said. The page is saved as `build-activity.html` in the user's projects folder and stays on their machine. Say this in one line on the first run.
 
 ## Run it
 
@@ -26,7 +26,8 @@ python3 -I <this skill's folder>/scripts/build.py
 
 ## Show it
 
-1. Open the page at the printed path. If your environment has a browser or preview pane tool, show it there. Otherwise open it in the user's browser: `open "<path>"` on macOS, `xdg-open "<path>"` on Linux, `start "" "<path>"` on Windows.
+1. Open the page. In the Claude desktop app, show it in the preview panel. Anywhere else, open it in the default browser: `open "<path>"` on macOS, `xdg-open "<path>"` on Linux, `start "" "<path>"` on Windows.
+   - If the current working folder is inside the projects folder rather than the projects folder itself, the app will ask permission to open the page. Say one line first, for example: "Your page is saved in `~/code`, your projects folder. You're inside `app-one`, so the app will ask before opening it. Click Allow."
 2. Reply with the summary as 3–5 short bullets: days building this year, the top projects with their day counts, and the note about days outside any project folder if one was printed.
 
 ## Changes the user can ask for
