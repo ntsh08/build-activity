@@ -48,7 +48,7 @@ Flags take folder names, not display names. If the user gives a display name, ma
 ## What the page shows
 
 - **Graph:** every day of the year, shaded by how much they worked with Claude that day. Hover shows the date and the projects worked on.
-- **Show details:** a 1M / 3M / 6M / 1Y filter, four cards (Projects, Active days, Longest streak, Longest project), and one row per project with its working days. 6M and 1Y group days into weeks.
+- **Activity details:** shown below the graph: a 1M / 3M / 6M / 1Y filter, four cards (Projects, Active days, Longest streak, Longest project), and one row per project with its working days. 6M and 1Y group days into weeks.
 - **Icons and links** are found automatically when a project has an app icon, logo or non-default favicon, or a `homepage` in `package.json`. Otherwise the row shows the project's first letter.
 
 Days when Claude ran outside any project folder count on the graph but in no project row. Mention this if the summary says so, and suggest opening Claude inside the project folder next time.
