@@ -39,6 +39,7 @@ Run the script with these flags, then open the page again. Each change is saved 
 | "Call `my-app-v2` My App" | `--rename "my-app-v2=My App"` |
 | "Count `my-app-v2` as part of `my-app`" | `--merge "my-app-v2=my-app"` |
 | "Link My App to example.com" | `--link "my-app=https://example.com"` |
+| "`my-app` is a case study" | `--kind "my-app=Case study"` |
 | "Hide `scratch`" / "Show it again" | `--hide scratch` / `--unhide scratch` |
 | "My projects are somewhere else now" | `--root "<folder>"` |
 | "Show 2025" | `--year 2025` |
@@ -48,7 +49,8 @@ Flags take folder names, not display names. If the user gives a display name, ma
 ## What the page shows
 
 - **Graph:** every day of the year, shaded by how much they worked with Claude that day. Hover shows the date and the projects worked on.
-- **Activity details:** shown below the graph: a 1M / 3M / 6M / 1Y filter, four cards (Projects, Active days, Longest streak, Longest project), and one row per project with its working days. 6M and 1Y group days into weeks.
+- **Activity details:** shown below the graph: a 1M / 3M / 6M / 1Y filter, one sentence saying how many projects and of what type were worked on and which took longest, and one row per project with its type and working days. 6M and 1Y group days into weeks.
+- **Types** (Mac app, iOS app, Web app, Skill, Plugin, Browser extension, CLI) are guessed from the files in each folder. A wrong guess is fixed with `--kind`.
 - **Icons and links** are found automatically when a project has an app icon, logo or non-default favicon, or a `homepage` in `package.json`. Otherwise the row shows the project's first letter.
 
 Days when Claude ran outside any project folder count on the graph but in no project row. Mention this if the summary says so, and suggest opening Claude inside the project folder next time.

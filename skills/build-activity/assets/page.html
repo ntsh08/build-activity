@@ -32,9 +32,7 @@ h1{font-family:'Space Grotesk',Inter,sans-serif;font-size:28px;font-weight:600;l
 .seg{display:inline-flex;background:var(--seg);border-radius:8px;padding:2px}
 .seg button{all:unset;cursor:pointer;font-size:13px;font-weight:500;padding:4px 12px;border-radius:6px;color:var(--sub)}
 .seg button[aria-pressed=true]{background:var(--seg-on);color:var(--text)}.seg button:focus-visible{outline:2px solid var(--tick)}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:28px}
-.kpi{background:var(--card);border-radius:10px;padding:8px 12px;min-width:0}
-.kpi .l{display:block;font-size:12px;color:var(--sub)}.kpi .v{display:block;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kpi .v small{font-size:13px;font-weight:400;color:var(--sub)}
+.lede{margin:0 0 24px;font-size:14px;line-height:1.6;color:var(--sub);text-wrap:pretty}.lede b{font-weight:500;color:var(--text)}
 .grid{display:grid;grid-template-columns:200px minmax(0,1fr) 48px;gap:16px;align-items:center}
 .head{font-size:12px;color:var(--sub);padding:0 14px 8px}
 .axis{position:relative;height:16px}.axis span{position:absolute;white-space:nowrap}
@@ -56,7 +54,7 @@ a.name:focus-visible{outline:2px solid var(--text);outline-offset:2px;border-rad
 .empty{padding:24px 0;color:var(--sub)}
 #tip{position:fixed;left:0;top:0;pointer-events:none;transform:translate(-50%,-100%);background:var(--text);color:var(--bg);font-size:12px;line-height:1.35;padding:6px 10px;border-radius:8px;white-space:nowrap;text-align:center;opacity:0;transition:opacity .1s;z-index:5}
 #tip b{display:block;font-weight:600}#tip.show{opacity:1}
-@media (max-width:640px){.grid{grid-template-columns:110px minmax(0,1fr) 36px;gap:8px}.kpis{grid-template-columns:1fr 1fr}.meta{display:none}}
+@media (max-width:640px){.grid{grid-template-columns:110px minmax(0,1fr) 36px;gap:8px}.meta{display:none}}
 @media (prefers-reduced-motion:reduce){#details.enter [data-i],#details.enter .cells,.cells i,a.name .arw,a.name svg{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -75,7 +73,7 @@ a.name:focus-visible{outline:2px solid var(--text);outline-offset:2px;border-rad
   </div>
   <div id="details"><div>
     <div class="dbar" data-i><h2>Activity details</h2><div class="seg" id="range" role="group" aria-label="Time range"></div></div>
-    <div class="kpis" id="kpis"></div>
+    <p class="lede" id="lede" data-i></p>
     <div class="grid head" data-i><span>Project</span><div class="axis" id="axis"></div><span style="text-align:right">Days</span></div>
     <div id="rows"></div>
   </div></div>
@@ -141,14 +139,23 @@ function renderDetails(){
     const cells=units.map((x,k)=>{const c=weekly?R(x,addDays(x,6)).filter(y=>set.has(y)).length:+set.has(x);return `<i data-i="${k}" data-c="${c}"${c?' class="on"':''}${weekly&&c?` style="opacity:${(.3+.7*c/7).toFixed(2)}"`:''}></i>`}).join('');
     const name=p.url?`<a class="name" href="${esc(p.url)}" target="_blank" rel="noopener"><span>${esc(p.name)}</span>${ARROW}</a>`:`<p class="name">${esc(p.name)}</p>`;
     const r=document.createElement('div');r.className='grid row';r.dataset.n=p.name;r.dataset.i='';
-    r.innerHTML=`<div class="proj">${icon(p)}<div>${name}<p class="meta">${range}</p></div></div><div class="cells${weekly?' wk':''}" style="gap:${U>150?0:weekly?2:1}px;grid-template-columns:repeat(${U},minmax(0,1fr))">${cells}</div><div class="n">${p.d.length}</div>`;
+    r.innerHTML=`<div class="proj">${icon(p)}<div>${name}<p class="meta">${p.kind?esc(p.kind):range}</p></div></div><div class="cells${weekly?' wk':''}" style="gap:${U>150?0:weekly?2:1}px;grid-template-columns:repeat(${U},minmax(0,1fr))">${cells}</div><div class="n">${p.d.length}</div>`;
     rows.appendChild(r);
   });
-  const active=Object.keys(MSG).filter(x=>x>=from&&x<=to).sort();
-  let best=0,run=0;active.forEach((x,i)=>{run=i&&addDays(active[i-1],1)===x?run+1:1;best=Math.max(best,run)});
-  const most=[...list].sort((a,b)=>b.d.length-a.d.length)[0];
-  $('kpis').innerHTML=[['Projects',list.length],['Active days',active.length],['Longest streak',`${best} day${best===1?'':'s'}`],['Longest project',most?esc(most.name):'—',most&&`${most.d.length} days`]]
-    .map(([l,v,t])=>`<div class="kpi" data-i><span class="l">${l}</span><span class="v">${v}${t?` <small>(${t})</small>`:''}</span></div>`).join('');
+  $('lede').innerHTML=lede(list);
+}
+
+const SPAN={'1M':'In the last month','3M':'In the last 3 months','6M':'In the last 6 months','1Y':'In the last year'};
+const plural=(k,n)=>{const w=/^(Mac|iOS|CLI)/.test(k)?k:k[0].toLowerCase()+k.slice(1);return n===1?w:w.endsWith('y')?w.slice(0,-1)+'ies':w.endsWith('s')?w:w+'s'};
+const join=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+function lede(list){
+  if(!list.length)return '';
+  const by={};let other=0;list.forEach(p=>p.kind?by[p.kind]=(by[p.kind]||0)+1:other++);
+  const parts=Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${n} ${esc(plural(k,n))}`);
+  if(other)parts.push(`${other} other${other>1?'s':''}`);
+  const most=[...list].sort((a,b)=>b.d.length-a.d.length)[0],n=list.length;
+  const kinds=parts.length>1||other?`: ${join(parts)}`:'';
+  return `${SPAN[S.range]} you worked on <b>${n} project${n>1?'s':''}</b>${kinds}. <b>${esc(most.name)}</b> took the longest, at ${most.d.length} day${most.d.length>1?'s':''}.`;
 }
 
 function intro(){

@@ -135,6 +135,67 @@ def find_icon(folder):
     return None, False
 
 
+WEB_DEPS = ("next", "vite", "react", "vue", "svelte", "@sveltejs/kit", "astro", "nuxt", "@angular/core")
+
+
+def read(path, limit=200_000):
+    try:
+        with open(path, errors="ignore") as f:
+            return f.read(limit)
+    except OSError:
+        return ""
+
+
+def find_kind(folder):
+    """Guess what a project is from its files: an app, a skill, a website and so on."""
+    seen = set()
+    base_depth = folder.rstrip(os.sep).count(os.sep)
+    for dirpath, dirnames, filenames in os.walk(folder):
+        if dirpath.count(os.sep) - base_depth >= 4:
+            dirnames[:] = []
+        for d in dirnames:
+            if d.endswith(".xcodeproj"):
+                sdk = set(re.findall(r"SDKROOT = (\w+)", read(os.path.join(dirpath, d, "project.pbxproj"))))
+                seen |= {"ios"} if "iphoneos" in sdk else {"mac"} if "macosx" in sdk else set()
+            if d == ".claude-plugin":
+                seen.add("plugin")
+        dirnames[:] = [d for d in dirnames if d not in SKIP and not d.startswith(".") and d != "scripts"]
+        for name in filenames:
+            full = os.path.join(dirpath, name)
+            if name == "SKILL.md":
+                seen.add("skill")
+            elif name == "Package.swift":
+                t = read(full)
+                seen.add("ios" if ".iOS" in t and ".macOS" not in t else "mac" if ".macOS" in t else "swift")
+            elif name.endswith(".swift"):
+                t = read(full, 4000)
+                if "import AppKit" in t:
+                    seen.add("mac")
+                elif "import UIKit" in t:
+                    seen.add("ios")
+            elif name == "Info.plist" and "LSMinimumSystemVersion" in read(full):
+                seen.add("mac")
+            elif name == "manifest.json" and '"manifest_version"' in read(full):
+                seen.add("extension")
+            elif name == "package.json":
+                try:
+                    pj = json.loads(read(full))
+                except ValueError:
+                    pj = {}
+                deps = {**pj.get("dependencies", {}), **pj.get("devDependencies", {})}
+                if "electron" in deps:
+                    seen.add("desktop")
+                elif any(k in deps for k in WEB_DEPS):
+                    seen.add("web")
+                elif pj.get("bin"):
+                    seen.add("cli")
+            elif name == "index.html":
+                seen.add("web")
+    order = [("ios", "iOS app"), ("mac", "Mac app"), ("desktop", "Desktop app"), ("plugin", "Plugin"),
+             ("skill", "Skill"), ("extension", "Browser extension"), ("web", "Web app"), ("cli", "CLI")]
+    return next((label for key, label in order if key in seen), None)
+
+
 def find_link(folder):
     try:
         with open(os.path.join(folder, "package.json")) as f:
@@ -149,7 +210,7 @@ def find_link(folder):
 def build(cfg):
     root = cfg["root"]
     per_day, folders = scan(root)
-    rename, merge, links = cfg.get("rename", {}), cfg.get("merge", {}), cfg.get("links", {})
+    rename, merge, links, kinds = cfg.get("rename", {}), cfg.get("merge", {}), cfg.get("links", {}), cfg.get("kind", {})
     hidden = set(cfg.get("hide", []))
     groups = collections.defaultdict(lambda: {"days": set(), "folders": []})
     for folder, days in folders.items():
@@ -170,6 +231,13 @@ def build(cfg):
                 if icon:
                     break
         link = links.get(target) or find_link(os.path.join(root, target))
+        kind = kinds.get(target)
+        if kind is None:
+            for folder in [target] + [f for f in g["folders"] if f != target]:
+                path = os.path.join(root, folder)
+                kind = find_kind(path) if os.path.isdir(path) else None
+                if kind:
+                    break
         projects.append({
             "name": rename.get(target, pretty(target)),
             "folder": target,
@@ -177,6 +245,7 @@ def build(cfg):
             "icon": icon,
             "app": app,
             "url": link,
+            "kind": kind or None,
         })
     today = datetime.date.today()
     year = int(cfg.get("year") or today.year)
@@ -191,7 +260,7 @@ def build(cfg):
     print(f"PAGE {output}")
     print(f"{len(in_year)} days building in {year}")
     for p in sorted(projects, key=lambda p: -len(p["days"]))[:8]:
-        print(f"- {p['name']}: {len(p['days'])} days ({p['days'][0]} to {p['days'][-1]})")
+        print(f"- {p['name']}{' (' + p['kind'] + ')' if p['kind'] else ''}: {len(p['days'])} days ({p['days'][0]} to {p['days'][-1]})")
     loose = len([d for d in per_day if d not in project_days])
     if loose:
         print(f"{loose} days were spent outside any project folder; they count on the graph only.")
@@ -210,6 +279,7 @@ def main():
     ap.add_argument("--rename", action="append", default=[], metavar="FOLDER=Name")
     ap.add_argument("--merge", action="append", default=[], metavar="FOLDER=TARGET_FOLDER")
     ap.add_argument("--link", action="append", default=[], metavar="FOLDER=URL")
+    ap.add_argument("--kind", action="append", default=[], metavar="FOLDER=Type")
     ap.add_argument("--hide", action="append", default=[], metavar="FOLDER")
     ap.add_argument("--unhide", action="append", default=[], metavar="FOLDER")
     ap.add_argument("--year", type=int)
@@ -221,7 +291,7 @@ def main():
         if not os.path.isdir(root):
             sys.exit(f"Not a folder: {root}")
         cfg["root"] = root
-    for key, items in (("rename", args.rename), ("merge", args.merge), ("links", args.link)):
+    for key, items in (("rename", args.rename), ("merge", args.merge), ("links", args.link), ("kind", args.kind)):
         for item in items:
             k, v = pair(item)
             cfg.setdefault(key, {})[k] = v

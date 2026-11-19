@@ -5,7 +5,7 @@ A Claude Code skill that shows a GitHub-style contribution graph of the days you
 Ask Claude "show my build activity" and it opens one page:
 
 - **Build activity:** a green graph of the year. Each square is a day, darker when you worked more with Claude.
-- **Activity details:** filter by 1M, 3M, 6M or 1Y to see your projects, how many days each took, your longest streak and your longest project. Hover a row to magnify its days.
+- **Activity details:** filter by 1M, 3M, 6M or 1Y to see your projects, what each one is (Mac app, web app, skill…) and how many days each took. Hover a row to magnify its days.
 
 ## Install
 
