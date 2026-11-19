@@ -2,6 +2,8 @@
 
 A Claude Code skill that shows a GitHub-style contribution graph of the days you built with Claude, and how many days each project took.
 
+https://github.com/user-attachments/assets/d1547883-5382-4f77-97c6-ac2cb6b12359
+
 Ask Claude "show my build activity" and it opens one page:
 
 - **Build activity:** a green graph of the year. Each square is a day, darker when you worked more with Claude.
