@@ -24,9 +24,8 @@ h1{font-family:'Space Grotesk',Inter,sans-serif;font-size:28px;font-weight:600;l
 .gfoot b{color:var(--text);font-weight:600}
 .legend{display:flex;align-items:center;gap:3px;font-size:12px}.legend i{width:10px;height:10px;border-radius:2px;background:var(--empty)}
 #details{padding-top:32px}
-#details.enter [data-i]{animation:fadein .3s ease both;animation-delay:calc(var(--i)*30ms)}
-#details.enter .cells{animation:draw .8s cubic-bezier(.3,.7,.2,1) both;animation-delay:calc(var(--i)*45ms + 120ms)}
-@keyframes fadein{from{opacity:0}}@keyframes draw{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+#details.enter [data-a]{animation:fadein .2s ease-out both;animation-delay:calc(var(--a)*20ms)}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}}
 .dbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .dbar h2{font-size:15px;font-weight:600;margin:0}
 .seg{display:inline-flex;background:var(--seg);border-radius:8px;padding:2px}
@@ -55,7 +54,7 @@ a.name:focus-visible{outline:2px solid var(--text);outline-offset:2px;border-rad
 #tip{position:fixed;left:0;top:0;pointer-events:none;transform:translate(-50%,-100%);background:var(--text);color:var(--bg);font-size:12px;line-height:1.35;padding:6px 10px;border-radius:8px;white-space:nowrap;text-align:center;opacity:0;transition:opacity .1s;z-index:5}
 #tip b{display:block;font-weight:600}#tip.show{opacity:1}
 @media (max-width:640px){.grid{grid-template-columns:110px minmax(0,1fr) 36px;gap:8px}.meta{display:none}}
-@media (prefers-reduced-motion:reduce){#details.enter [data-i],#details.enter .cells,.cells i,a.name .arw,a.name svg{transition:none!important;animation:none!important}}
+@media (prefers-reduced-motion:reduce){#details.enter [data-a],.cells i,a.name .arw,a.name svg{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
@@ -72,9 +71,9 @@ a.name:focus-visible{outline:2px solid var(--text);outline-offset:2px;border-rad
     </div>
   </div>
   <div id="details"><div>
-    <div class="dbar" data-i><h2>Activity details</h2><div class="seg" id="range" role="group" aria-label="Time range"></div></div>
-    <p class="lede" id="lede" data-i></p>
-    <div class="grid head" data-i><span>Project</span><div class="axis" id="axis"></div><span style="text-align:right">Days</span></div>
+    <div class="dbar" data-a><h2>Activity details</h2><div class="seg" id="range" role="group" aria-label="Time range"></div></div>
+    <p class="lede" id="lede" data-a></p>
+    <div class="grid head" data-a><span>Project</span><div class="axis" id="axis"></div><span style="text-align:right">Days</span></div>
     <div id="rows"></div>
   </div></div>
   <div id="tip" role="status" aria-live="polite"></div>
@@ -138,7 +137,7 @@ function renderDetails(){
     const set=new Set(p.d),range=p.d.length>1?`${fmt(p.d[0])} – ${fmt(p.d[p.d.length-1])}`:fmt(p.d[0]);
     const cells=units.map((x,k)=>{const c=weekly?R(x,addDays(x,6)).filter(y=>set.has(y)).length:+set.has(x);return `<i data-i="${k}" data-c="${c}"${c?' class="on"':''}${weekly&&c?` style="opacity:${(.3+.7*c/7).toFixed(2)}"`:''}></i>`}).join('');
     const name=p.url?`<a class="name" href="${esc(p.url)}" target="_blank" rel="noopener"><span>${esc(p.name)}</span>${ARROW}</a>`:`<p class="name">${esc(p.name)}</p>`;
-    const r=document.createElement('div');r.className='grid row';r.dataset.n=p.name;r.dataset.i='';
+    const r=document.createElement('div');r.className='grid row';r.dataset.n=p.name;r.dataset.a='';
     r.innerHTML=`<div class="proj">${icon(p)}<div>${name}<p class="meta">${p.kind?esc(p.kind):range}</p></div></div><div class="cells${weekly?' wk':''}" style="gap:${U>150?0:weekly?2:1}px;grid-template-columns:repeat(${U},minmax(0,1fr))">${cells}</div><div class="n">${p.d.length}</div>`;
     rows.appendChild(r);
   });
@@ -160,12 +159,9 @@ function lede(list){
 
 function intro(){
   const d=$('details');
-  d.querySelectorAll('[data-i]').forEach((el,i)=>el.style.setProperty('--i',i));
-  d.querySelectorAll('.row .cells').forEach((el,i)=>el.style.setProperty('--i',i));
+  d.querySelectorAll('[data-a]').forEach((el,i)=>el.style.setProperty('--a',Math.min(i,10)));
   d.classList.add('enter');
-  if(!matchMedia('(prefers-reduced-motion: reduce)').matches)d.querySelectorAll('#rows .n').forEach((el,i)=>{const to=+el.textContent,t0=performance.now()+120+i*45;el.textContent='0';
-    const f=now=>{const k=Math.min(1,Math.max(0,(now-t0)/700));el.textContent=Math.round(to*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)});
-  setTimeout(()=>d.classList.remove('enter'),2400);
+  setTimeout(()=>d.classList.remove('enter'),600);
 }
 $('range').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.range=b.dataset.range;renderDetails()};
 
