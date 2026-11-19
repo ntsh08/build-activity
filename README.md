@@ -25,10 +25,6 @@ Claude asks one question: which folder holds your projects. Every subfolder beco
 
 You can then ask Claude to rename a project, merge two folders, add a link or hide a folder.
 
-## Build in more than one tool?
-
-Ask Claude to keep your days in one Markdown file. Claude and Codex then add a line (`date · project · type`) whenever they work on a project, and the page is drawn from that file. You can edit it by hand too.
-
 ## Privacy
 
 The skill reads only the date and folder of each saved Claude Code session. It never reads what you said. The page is saved as `build-activity.html` in your projects folder and never leaves your machine.

@@ -43,18 +43,8 @@ Run the script with these flags, then open the page again. Each change is saved 
 | "Hide `scratch`" / "Show it again" | `--hide scratch` / `--unhide scratch` |
 | "My projects are somewhere else now" | `--root "<folder>"` |
 | "Show 2025" | `--year 2025` |
-| "Keep my days in one file" | `--record "<file.md>"` |
 
 Flags take folder names, not display names. If the user gives a display name, match it to the folder from the last summary or from the config at `~/.claude/build-activity/config.json`.
-
-## Keep a record (optional)
-
-Some users build in more than one tool, or want their days kept even if session history is cleared. They can keep one Markdown file of their days instead:
-
-- `--record "<file.md>"` creates the file from their Claude Code history and saves its path. From then on the page is drawn only from this file.
-- `--log <project folder>` adds today's line, `date · project · type`, once per day. Run it whenever you work on a project.
-- To make logging automatic, offer to add this one rule to `~/.claude/CLAUDE.md` (and `~/.codex/AGENTS.md` for Codex): "When you work on a project inside <projects folder>, log the day once per session: `python3 -I <this skill's folder>/scripts/build.py --log <project folder name>`."
-- If the file sits in a git repo, each change is committed and pushed. The user can also edit lines by hand.
 
 ## What the page shows
 

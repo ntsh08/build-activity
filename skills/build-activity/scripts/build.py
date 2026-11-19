@@ -170,9 +170,9 @@ def find_kind(folder):
             elif name.endswith(".swift"):
                 t = read(full, 4000)
                 if "import AppKit" in t:
-                    seen.add("mac-code")       # weak: could be a helper script
+                    seen.add("mac")
                 elif "import UIKit" in t:
-                    seen.add("ios-code")
+                    seen.add("ios")
             elif name == "Info.plist" and "LSMinimumSystemVersion" in read(full):
                 seen.add("mac")
             elif name == "manifest.json" and '"manifest_version"' in read(full):
@@ -192,8 +192,7 @@ def find_kind(folder):
             elif name == "index.html":
                 seen.add("web")
     order = [("ios", "iOS app"), ("mac", "Mac app"), ("desktop", "Desktop app"), ("plugin", "Plugin"),
-             ("skill", "Skill"), ("extension", "Browser extension"), ("ios-code", "iOS app"), ("mac-code", "Mac app"),
-             ("web", "Web app"), ("cli", "CLI")]
+             ("skill", "Skill"), ("extension", "Browser extension"), ("web", "Web app"), ("cli", "CLI")]
     return next((label for key, label in order if key in seen), None)
 
 
@@ -208,16 +207,11 @@ def find_link(folder):
     return None
 
 
-RECORD_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2}) · (.+?)(?: · (.+?))?\s*$")
-RECORD_HEADER = ("# Activity\n\nOne line per day per project: date · project · type.\n"
-                 "Added by the build-activity skill. Fix or add lines by hand any time.\n\n")
-
-
-def history_groups(cfg):
-    """Days per project from Claude Code's saved sessions, with merges and hidden folders applied."""
+def build(cfg):
     root = cfg["root"]
     per_day, folders = scan(root)
-    merge, hidden = cfg.get("merge", {}), set(cfg.get("hide", []))
+    rename, merge, links, kinds = cfg.get("rename", {}), cfg.get("merge", {}), cfg.get("links", {}), cfg.get("kind", {})
+    hidden = set(cfg.get("hide", []))
     groups = collections.defaultdict(lambda: {"days": set(), "folders": []})
     for folder, days in folders.items():
         if folder in hidden or folder.startswith(".") or not os.path.isdir(os.path.join(root, folder)):
@@ -227,142 +221,32 @@ def history_groups(cfg):
             continue
         groups[target]["days"] |= days
         groups[target]["folders"].append(folder)
-    return per_day, groups
-
-
-def member_folders(cfg, target):
-    return [target] + [f for f, t in cfg.get("merge", {}).items() if t == target and f != target]
-
-
-def project_kind(cfg, target):
-    kind = cfg.get("kind", {}).get(target)
-    if kind:
-        return kind
-    for folder in member_folders(cfg, target):
-        path = os.path.join(cfg["root"], folder)
-        kind = find_kind(path) if os.path.isdir(path) else None
-        if kind:
-            return kind
-    return None
-
-
-def project_name(cfg, target):
-    return cfg.get("rename", {}).get(target, pretty(target))
-
-
-def folder_for(cfg, name):
-    """The project folder behind a display name in the record."""
-    for folder, shown in cfg.get("rename", {}).items():
-        if shown == name:
-            return folder
-    root = cfg["root"]
-    for folder in sorted(os.listdir(root)) if os.path.isdir(root) else []:
-        if pretty(folder) == name or folder == name:
-            return cfg.get("merge", {}).get(folder, folder)
-    return None
-
-
-def read_record(path):
-    entries = []
-    try:
-        with open(path) as f:
-            for line in f:
-                m = RECORD_LINE.match(line.strip().lstrip("-* "))
-                if m:
-                    entries.append((m.group(1), m.group(2).strip(), (m.group(3) or "").strip() or None))
-    except OSError:
-        pass
-    return entries
-
-
-def save_record(path, lines):
-    with open(path, "w") as f:
-        f.write(RECORD_HEADER + "\n".join(lines) + ("\n" if lines else ""))
-
-
-def commit_record(path, message):
-    """If the record sits in a git repo, commit it and push quietly. Failures never block."""
-    folder = os.path.dirname(path)
-    try:
-        if subprocess.run(["git", "-C", folder, "rev-parse"], capture_output=True).returncode != 0:
-            return
-        subprocess.run(["git", "-C", folder, "add", path], capture_output=True, timeout=20)
-        subprocess.run(["git", "-C", folder, "commit", "-q", "-m", message, "--", path], capture_output=True, timeout=20)
-        subprocess.run(["git", "-C", folder, "push", "-q"], capture_output=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        pass
-
-
-def start_record(cfg, path):
-    """Create the record, filled with every day already in Claude Code's history."""
-    if read_record(path):
-        return
-    _, groups = history_groups(cfg)
-    lines = []
-    for target, g in groups.items():
-        name, kind = project_name(cfg, target), project_kind(cfg, target)
-        lines += [f"{d} · {name}" + (f" · {kind}" if kind else "") for d in g["days"]]
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    save_record(path, sorted(lines))
-    commit_record(path, "Start the activity record")
-    print(f"RECORD {path} ({len(lines)} lines from Claude Code history)")
-
-
-def log_today(cfg, project):
-    """Add today's line for a project to the record, once per day."""
-    path = cfg.get("record")
-    if not path:
-        sys.exit("No record file set. Run with --record <file.md> first.")
-    root = cfg["root"]
-    rel = os.path.relpath(os.path.realpath(os.path.expanduser(project)), root) if os.path.isabs(os.path.expanduser(project)) else project
-    folder = rel.split(os.sep)[0]
-    if folder in ("", ".", "..") or folder.startswith(".."):
-        sys.exit(f"Not a project inside {root}: {project}")
-    hidden = set(cfg.get("hide", []))
-    target = cfg.get("merge", {}).get(folder, folder)
-    if folder in hidden or target in hidden:
-        print(f"SKIPPED {folder} is hidden")
-        return
-    name, kind = project_name(cfg, target), project_kind(cfg, target)
-    today = datetime.date.today().isoformat()
-    entries = read_record(path)
-    if any(d == today and n == name for d, n, _ in entries):
-        print(f"ALREADY {today} · {name}")
-        return
-    line = f"{today} · {name}" + (f" · {kind}" if kind else "")
-    lines = [f"{d} · {n}" + (f" · {k}" if k else "") for d, n, k in entries] + [line]
-    save_record(path, lines)
-    commit_record(path, f"{today}: {name}")
-    print(f"LOGGED {line}")
-
-
-def build(cfg):
-    root = cfg["root"]
-    links = cfg.get("links", {})
-    record = cfg.get("record")
-    if record:
-        entries = read_record(record)
-        per_day = collections.Counter(d for d, _, _ in entries)
-        by_name = collections.defaultdict(lambda: {"days": set(), "kind": None})
-        for d, n, k in entries:
-            by_name[n]["days"].add(d)
-            by_name[n]["kind"] = k or by_name[n]["kind"]
-        found = [(folder_for(cfg, n), n, v["days"], v["kind"]) for n, v in by_name.items()]
-    else:
-        per_day, groups = history_groups(cfg)
-        found = [(t, project_name(cfg, t), g["days"], project_kind(cfg, t)) for t, g in groups.items()]
     projects = []
-    for target, name, days, kind in found:
-        icon, app, link = None, False, None
-        if target:
-            for folder in member_folders(cfg, target):
+    for target, g in groups.items():
+        icon, app = None, False
+        for folder in [target] + [f for f in g["folders"] if f != target]:
+            path = os.path.join(root, folder)
+            if os.path.isdir(path):
+                icon, app = find_icon(path)
+                if icon:
+                    break
+        link = links.get(target) or find_link(os.path.join(root, target))
+        kind = kinds.get(target)
+        if kind is None:
+            for folder in [target] + [f for f in g["folders"] if f != target]:
                 path = os.path.join(root, folder)
-                if os.path.isdir(path):
-                    icon, app = find_icon(path)
-                    if icon:
-                        break
-            link = links.get(target) or find_link(os.path.join(root, target))
-        projects.append({"name": name, "folder": target, "days": sorted(days), "icon": icon, "app": app, "url": link, "kind": kind})
+                kind = find_kind(path) if os.path.isdir(path) else None
+                if kind:
+                    break
+        projects.append({
+            "name": rename.get(target, pretty(target)),
+            "folder": target,
+            "days": sorted(g["days"]),
+            "icon": icon,
+            "app": app,
+            "url": link,
+            "kind": kind or None,
+        })
     today = datetime.date.today()
     year = int(cfg.get("year") or today.year)
     data = {"year": year, "today": today.isoformat(), "messages": dict(sorted(per_day.items())), "projects": projects}
@@ -374,7 +258,7 @@ def build(cfg):
     in_year = [d for d in per_day if d.startswith(str(year))]
     project_days = set().union(*[set(p["days"]) for p in projects]) if projects else set()
     print(f"PAGE {output}")
-    print(f"{len(in_year)} days building in {year}" + (f" (from {record})" if record else ""))
+    print(f"{len(in_year)} days building in {year}")
     for p in sorted(projects, key=lambda p: -len(p["days"]))[:8]:
         print(f"- {p['name']}{' (' + p['kind'] + ')' if p['kind'] else ''}: {len(p['days'])} days ({p['days'][0]} to {p['days'][-1]})")
     loose = len([d for d in per_day if d not in project_days])
@@ -399,8 +283,6 @@ def main():
     ap.add_argument("--hide", action="append", default=[], metavar="FOLDER")
     ap.add_argument("--unhide", action="append", default=[], metavar="FOLDER")
     ap.add_argument("--year", type=int)
-    ap.add_argument("--record", metavar="FILE.md", help="keep days in this Markdown file and draw the page from it (saved)")
-    ap.add_argument("--log", metavar="PROJECT", help="add today's line for this project folder to the record, then stop")
     args = ap.parse_args()
 
     cfg = load_config()
@@ -417,18 +299,11 @@ def main():
     cfg["hide"] = sorted(hide - set(args.unhide))
     if args.year:
         cfg["year"] = args.year
-    if args.record:
-        cfg["record"] = os.path.realpath(os.path.expanduser(args.record))
     if not cfg.get("root"):
         print("NEEDS_ROOT")
         return
     save_config(cfg)
-    if args.log:
-        log_today(cfg, args.log)
-        return
-    if args.record:
-        start_record(cfg, cfg["record"])
-    if not cfg.get("record") and not os.path.isdir(SESSIONS):
+    if not os.path.isdir(SESSIONS):
         sys.exit(f"No Claude Code sessions found at {SESSIONS}")
     build(cfg)
 
