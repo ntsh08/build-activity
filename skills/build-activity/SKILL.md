@@ -36,9 +36,9 @@ Run the script with these flags, then open the page again. Each change is saved 
 
 | User says | Flag |
 | --- | --- |
-| "Call `tea-time-v2` Tea Time" | `--rename "tea-time-v2=Tea Time"` |
-| "Count `tea-time-v2` as part of `tea-time`" | `--merge "tea-time-v2=tea-time"` |
-| "Link Tea Time to teatime.app" | `--link "tea-time=https://teatime.app"` |
+| "Call `my-app-v2` My App" | `--rename "my-app-v2=My App"` |
+| "Count `my-app-v2` as part of `my-app`" | `--merge "my-app-v2=my-app"` |
+| "Link My App to example.com" | `--link "my-app=https://example.com"` |
 | "Hide `scratch`" / "Show it again" | `--hide scratch` / `--unhide scratch` |
 | "My projects are somewhere else now" | `--root "<folder>"` |
 | "Show 2025" | `--year 2025` |
